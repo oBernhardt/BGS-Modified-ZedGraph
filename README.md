@@ -1,6 +1,6 @@
 # ZedGraph #
 
-This is a fork of https://github.com/saleyn/ZedGraph.git
+This is a fork of https://github.com/ZedGraph/ZedGraph
 
 The original project is LGPL copyrighted 2004-2009 by John Champion.
 https://sourceforge.net/projects/zedgraph/
