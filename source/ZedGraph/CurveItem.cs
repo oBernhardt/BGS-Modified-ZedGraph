@@ -42,16 +42,24 @@ namespace ZedGraph
 	[Serializable]
 	abstract public class CurveItem : ISerializable, ICloneable
 	{
-	
-	#region Fields
 
-		/// <summary>
-		/// protected field that stores a <see cref="Label" /> instance for this
-		/// <see cref="CurveItem"/>, which is used for the <see cref="Legend" />
-		/// label.  Use the public
-		/// property <see cref="Label"/> to access this value.
-		/// </summary>
-		internal Label _label;
+        #region Fields
+        /// <summary>
+        /// protected field that stores a <see cref="ClipAndInterpolateToChartArea" /> instance for this
+        /// <see cref="CurveItem"/>, which is used for line and area drawing <see cref="Line" /> Use the public
+        /// property <see cref="ClipAndInterpolateToChartArea"/> to access this value.
+        /// This field was added in order to fix performance issues with "ourtragous" coordinates in GDI+
+        /// </summary>
+        [CLSCompliant(false)]
+        protected bool _clipAndInterpolateToChartArea;
+
+        /// <summary>
+        /// protected field that stores a <see cref="Label" /> instance for this
+        /// <see cref="CurveItem"/>, which is used for the <see cref="Legend" />
+        /// label.  Use the public
+        /// property <see cref="Label"/> to access this value.
+        /// </summary>
+        internal Label _label;
 
 		/// <summary>
 		/// protected field that stores the boolean value that determines whether this
@@ -352,14 +360,19 @@ namespace ZedGraph
 			set { _label = value;}
 		}
 
-		/// <summary>
-		/// The <see cref="Line"/>/<see cref="Symbol"/>/<see cref="Bar"/> 
-		/// color (FillColor for the Bar).  This is a common access to
-		/// <see cref="ZedGraph.LineBase.Color">Line.Color</see>,
-		/// <see cref="ZedGraph.LineBase.Color">Border.Color</see>, and
-		/// <see cref="ZedGraph.Fill.Color">Fill.Color</see> properties for this curve.
-		/// </summary>
-		public Color Color
+        public bool ClipAndInterpolateToChartArea {
+            get { return this._clipAndInterpolateToChartArea; }
+            set { this._clipAndInterpolateToChartArea = value; }
+        }
+
+        /// <summary>
+        /// The <see cref="Line"/>/<see cref="Symbol"/>/<see cref="Bar"/> 
+        /// color (FillColor for the Bar).  This is a common access to
+        /// <see cref="ZedGraph.LineBase.Color">Line.Color</see>,
+        /// <see cref="ZedGraph.LineBase.Color">Border.Color</see>, and
+        /// <see cref="ZedGraph.Fill.Color">Fill.Color</see> properties for this curve.
+        /// </summary>
+        public Color Color
 		{
 			get
 			{

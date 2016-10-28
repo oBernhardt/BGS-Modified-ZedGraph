@@ -628,6 +628,11 @@ namespace ZedGraph {
             int minY = (int)pane.Chart.Rect.Top;
             int maxY = (int)pane.Chart.Rect.Bottom;
 
+            int interpolationMinY = (curve.ClipAndInterpolateToChartArea) ? minY : -5000000; //-5000000 is the original boundry used
+            int interpolationMinX = (curve.ClipAndInterpolateToChartArea) ? minX : -5000000; //-5000000 is the original boundry used
+            int interpolationMaxY = (curve.ClipAndInterpolateToChartArea) ? maxY : 5000000; //5000000 is the original boundry used
+            int interpolationMaxX = (curve.ClipAndInterpolateToChartArea) ? maxX : 5000000; //5000000 is the original boundry used
+
             using (Pen pen = source.GetPen(pane, scaleFactor)) {
                 if (points != null && !_color.IsEmpty && this.IsVisible) {
                     //bool lastOut = false;
@@ -693,12 +698,17 @@ namespace ZedGraph {
                                 try {
                                     // GDI+ plots the data wrong and/or throws an exception for
                                     // outrageous coordinates, so we do a sanity check here
-                                    if (lastX > maxX || lastX < minX ||
-                                            lastY > maxY || lastY < minY ||
-                                            tmpX > maxX || tmpX < minX ||
-                                            tmpY > maxY || tmpY < minY) {
-                                        InterpolatePoint(g, pane, curve, lastPt, scaleFactor, pen,
-                                                        lastX, lastY, tmpX, tmpY);
+                                    if (lastX > interpolationMaxX || lastX < interpolationMinX ||
+                                            lastY > interpolationMaxY || lastY < interpolationMinY ||
+                                            tmpX > interpolationMaxX || tmpX < interpolationMinX ||
+                                            tmpY > interpolationMaxY || tmpY < interpolationMinY) {
+
+                                        if (curve.ClipAndInterpolateToChartArea) {
+                                            InterpolatePoint(g, pane, curve, lastPt, scaleFactor, pen,
+                                                            lastX, lastY, tmpX, tmpY);
+                                        } else {
+                                            InterpolatePointOriginal(g, pane, curve, lastPt, scaleFactor, pen, lastX, lastY, tmpX, tmpY);
+                                        }
                                     } else if (!isOut) {
                                         if (!curve.IsSelected && this._gradientFill.IsGradientValueType) {
                                             using (Pen tPen = GetPen(pane, scaleFactor, lastPt)) {
@@ -982,34 +992,8 @@ namespace ZedGraph {
 
                         tmpX = x;
                         tmpY = y;
-                        /*float newX, newY;
-
-                        if (Math.Abs(tmpX) > Math.Abs(tmpY)) {
-                            newX = tmpX < 0 ? chartRect.Left : chartRect.Right;
-                            newY = tmpY + (lastY - tmpY) * (newX - tmpX) / (lastX - tmpX);
-                        } else {
-                            newY = tmpY < 0 ? chartRect.Top : chartRect.Bottom;
-                            newX = tmpX + (lastX - tmpX) * (newY - tmpY) / (lastY - tmpY);
-                        }
-
-                        tmpX = newX;
-                        tmpY = newY;*/
                     }
 
-                    /*
-                    if ( this.StepType == StepType.ForwardStep )
-                    {
-                        g.DrawLine( pen, lastX, lastY, tmpX, lastY );
-                        g.DrawLine( pen, tmpX, lastY, tmpX, tmpY );
-                    }
-                    else if ( this.StepType == StepType.RearwardStep )
-                    {
-                        g.DrawLine( pen, lastX, lastY, lastX, tmpY );
-                        g.DrawLine( pen, lastX, tmpY, tmpX, tmpY );
-                    }
-                    else 		// non-step
-                        g.DrawLine( pen, lastX, lastY, tmpX, tmpY );
-                    */
                     if (!curve.IsSelected && this._gradientFill.IsGradientValueType) {
                         using (Pen tPen = GetPen(pane, scaleFactor, lastPt)) {
                             if (this.StepType == StepType.NonStep) {
@@ -1045,6 +1029,108 @@ namespace ZedGraph {
             } catch { }
         }
 
+        /// <summary>
+		/// This method just handles the case where one or more of the coordinates are outrageous,
+		/// or GDI+ threw an exception.  This method attempts to correct the outrageous coordinates by
+		/// interpolating them to a point (along the original line) that lies at the edge of the ChartRect
+		/// so that GDI+ will handle it properly.  GDI+ will throw an exception, or just plot the data
+		/// incorrectly if the coordinates are too large (empirically, this appears to be when the
+		/// coordinate value is greater than 5,000,000 or less than -5,000,000).  Although you typically
+		/// would not see coordinates like this, if you repeatedly zoom in on a ZedGraphControl, eventually
+		/// all your points will be way outside the bounds of the plot.
+        /// 
+        /// This is the original interpolation method of the fork source
+		/// </summary>
+		private void InterpolatePointOriginal(Graphics g, GraphPane pane, CurveItem curve, PointPair lastPt,
+                        float scaleFactor, Pen pen, float lastX, float lastY, float tmpX, float tmpY) {
+            try {
+                RectangleF chartRect = pane.Chart._rect;
+                // try to interpolate values
+                bool lastIn = chartRect.Contains(lastX, lastY);
+                bool curIn = chartRect.Contains(tmpX, tmpY);
+
+                // If both points are outside the ChartRect, make a new point that is on the LastX/Y
+                // side of the ChartRect, and fall through to the code that handles lastIn == true
+                if (!lastIn) {
+                    float newX, newY;
+
+                    if (Math.Abs(lastX) > Math.Abs(lastY)) {
+                        newX = lastX < 0 ? chartRect.Left : chartRect.Right;
+                        newY = lastY + (tmpY - lastY) * (newX - lastX) / (tmpX - lastX);
+                    } else {
+                        newY = lastY < 0 ? chartRect.Top : chartRect.Bottom;
+                        newX = lastX + (tmpX - lastX) * (newY - lastY) / (tmpY - lastY);
+                    }
+
+                    lastX = newX;
+                    lastY = newY;
+                }
+
+                if (!curIn) {
+                    float newX, newY;
+
+                    if (Math.Abs(tmpX) > Math.Abs(tmpY)) {
+                        newX = tmpX < 0 ? chartRect.Left : chartRect.Right;
+                        newY = tmpY + (lastY - tmpY) * (newX - tmpX) / (lastX - tmpX);
+                    } else {
+                        newY = tmpY < 0 ? chartRect.Top : chartRect.Bottom;
+                        newX = tmpX + (lastX - tmpX) * (newY - tmpY) / (lastY - tmpY);
+                    }
+
+                    tmpX = newX;
+                    tmpY = newY;
+                }
+
+                /*
+				if ( this.StepType == StepType.ForwardStep )
+				{
+					g.DrawLine( pen, lastX, lastY, tmpX, lastY );
+					g.DrawLine( pen, tmpX, lastY, tmpX, tmpY );
+				}
+				else if ( this.StepType == StepType.RearwardStep )
+				{
+					g.DrawLine( pen, lastX, lastY, lastX, tmpY );
+					g.DrawLine( pen, lastX, tmpY, tmpX, tmpY );
+				}
+				else 		// non-step
+					g.DrawLine( pen, lastX, lastY, tmpX, tmpY );
+				*/
+                if (!curve.IsSelected && this._gradientFill.IsGradientValueType) {
+                    using (Pen tPen = GetPen(pane, scaleFactor, lastPt)) {
+                        if (this.StepType == StepType.NonStep) {
+                            g.DrawLine(tPen, lastX, lastY, tmpX, tmpY);
+                        } else if (this.StepType == StepType.ForwardStep) {
+                            g.DrawLine(tPen, lastX, lastY, tmpX, lastY);
+                            g.DrawLine(tPen, tmpX, lastY, tmpX, tmpY);
+                        } else if (this.StepType == StepType.RearwardStep) {
+                            g.DrawLine(tPen, lastX, lastY, lastX, tmpY);
+                            g.DrawLine(tPen, lastX, tmpY, tmpX, tmpY);
+                        } else if (this.StepType == StepType.ForwardSegment) {
+                            g.DrawLine(tPen, lastX, lastY, tmpX, lastY);
+                        } else {
+                            g.DrawLine(tPen, lastX, tmpY, tmpX, tmpY);
+                        }
+                    }
+                } else {
+                    if (this.StepType == StepType.NonStep) {
+                        g.DrawLine(pen, lastX, lastY, tmpX, tmpY);
+                    } else if (this.StepType == StepType.ForwardStep) {
+                        g.DrawLine(pen, lastX, lastY, tmpX, lastY);
+                        g.DrawLine(pen, tmpX, lastY, tmpX, tmpY);
+                    } else if (this.StepType == StepType.RearwardStep) {
+                        g.DrawLine(pen, lastX, lastY, lastX, tmpY);
+                        g.DrawLine(pen, lastX, tmpY, tmpX, tmpY);
+                    } else if (this.StepType == StepType.ForwardSegment) {
+                        g.DrawLine(pen, lastX, lastY, tmpX, lastY);
+                    } else if (this.StepType == StepType.RearwardSegment) {
+                        g.DrawLine(pen, lastX, tmpY, tmpX, tmpY);
+                    }
+                }
+
+            } catch { }
+        }
+
+
         private bool IsOut(Edges edge, float value, RectangleF rect) {
             switch (edge) {
                 case Edges.Left:
@@ -1079,55 +1165,8 @@ namespace ZedGraph {
                     if (yFrom < rect.Top) {
 
                     }
-
                 }
             }
-
-                /*bool intersectsLeft = x0 < rect.Left && x1 > rect.Left;
-                bool intersectsRight = x0 < rect.Right && x1 > rect.Right;
-
-
-
-             
-
-
-                if (!rect.Contains(points[i])) {
-                    List<PointF> tmpPoints = new List<PointF>();
-                    bool leftOut = false;
-                    bool rightOut = false;
-                    if (x < rect.Left) {
-                        x = rect.Left;
-                        y = y1 + (y0 - y1) * (x - x1) / (x0 - x1);
-                        leftOut = true;
-                    } else if (x > rect.Right) {
-                        x = rect.Right;
-                        y = y1 + (y0 - y1) * (x - x1) / (x0 - x1);
-                        rightOut = true;
-                    }
-
-                    if (y < rect.Top) {
-                        y = rect.Top;
-                        if (leftOut || rightOut) { tmpPoints.Add(new PointF(x, y)); }
-                        x = x1 + (x0 - x1) * (y - y1) / (y0 - y1);
-                    } else if (y > rect.Bottom) {
-                        y = rect.Bottom;
-                        if (leftOut || rightOut) { tmpPoints.Add(new PointF(x, y)); }
-                        x = x1 + (x0 - x1) * (y - y1) / (y0 - y1);
-                    }
-
-                    if (rightOut) {
-                        tmpPoints.Insert(0, new PointF(x, y));
-                    } else {
-                        tmpPoints.Add(new PointF(x, y));
-                    }
-
-                    newPoints.AddRange(tmpPoints);
-                } else {
-                    newPoints.Add(points[i]);
-                }
-*/
-
-            
 
             return newPoints;
         }
@@ -1152,6 +1191,12 @@ namespace ZedGraph {
             List<PointF> pointsList;
             count = 0;
             IPointList points = curve.Points;
+            RectangleF chartRect = pane.Chart.Rect;
+
+            float maxDrawX = (curve.ClipAndInterpolateToChartArea) ? chartRect.Right : 1000000.0f;
+            float maxDrawY = (curve.ClipAndInterpolateToChartArea) ? chartRect.Bottom : 1000000.0f;
+            float minDrawX = (curve.ClipAndInterpolateToChartArea) ? chartRect.Left : -1000000.0f;
+            float minDrawY = (curve.ClipAndInterpolateToChartArea) ? chartRect.Right : -1000000.0f;
 
             if (this.IsVisible && !this.Color.IsEmpty && points != null) {
                 int index = 0;
@@ -1192,7 +1237,7 @@ namespace ZedGraph {
                         Axis yAxis = curve.GetYAxis(pane);
                         curY = yAxis.Scale.Transform(curve.IsOverrideOrdinal, i, y);
 
-                        if (curX < pane.Chart.Rect.Left || curY < pane.Chart.Rect.Top|| curX > pane.Chart.Rect.Right || curY > pane.Chart.Rect.Bottom)
+                        if (curX < minDrawX || curY < minDrawY || curX > maxDrawX || curY > maxDrawY)
                             continue;
 
                         // Add the pixel value pair into the points array
@@ -1223,8 +1268,9 @@ namespace ZedGraph {
                 // Make sure there is at least one valid point
                 if (index == 0)
                     return false;
-
-                //pointsList = ClipAreaPolygonPoints(pointsList, pane.Chart.Rect);
+                if (curve.ClipAndInterpolateToChartArea) {
+                    pointsList = ClipAreaPolygonPoints(pointsList, pane.Chart.Rect);
+                }
                 pointsList.Add(pointsList[pointsList.Count - 1]);
                 arrPoints = pointsList.ToArray();
 
