@@ -21,6 +21,8 @@
 
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Text;
 using System.Runtime.Serialization;
 using System.Security.Permissions;
 
@@ -28,350 +30,335 @@ using System.Security.Permissions;
 
 namespace ZedGraph
 {
-  /// <summary>
-  ///   Encapsulates an "Error Bar" curve type that displays a vertical or horizontal
-  ///   line with a symbol at each end.
-  /// </summary>
-  /// <remarks>
-  ///   The <see cref="ErrorBarItem" /> type is intended for displaying
-  ///   confidence intervals, candlesticks, stock High-Low charts, etc.  It is
-  ///   technically not a bar, since it is drawn as a vertical or horizontal line.
-  ///   The default symbol at each end of the "bar" is <see cref="SymbolType.HDash" />,
-  ///   which creates an "I-Beam".  For horizontal bars
-  ///   (<see cref="ZedGraph.BarBase.Y" /> or
-  ///   <see cref="ZedGraph.BarBase.Y2" />), you will need to change the symbol to
-  ///   <see cref="SymbolType.VDash" /> to get horizontal "I-Beams".
-  ///   Since the horizontal segments are actually symbols, their widths are
-  ///   controlled by the symbol size in <see cref="ZedGraph.ErrorBar.Symbol" />,
-  ///   specified in points (1/72nd inch).  The position of each "I-Beam" is set
-  ///   according to the <see cref="PointPair" /> values.  The independent axis
-  ///   is assigned with <see cref="BarSettings.Base" />, and is a
-  ///   <see cref="ZedGraph.BarBase" /> enum type.
-  /// </remarks>
-  /// <author> John Champion </author>
-  /// <version> $Revision: 3.19 $ $Date: 2007-04-16 00:03:01 $ </version>
-  [Serializable]
-  public class ErrorBarItem : CurveItem, ICloneable, IBarItem
-  {
-    #region Fields
+	/// <summary>
+	/// Encapsulates an "Error Bar" curve type that displays a vertical or horizontal
+	/// line with a symbol at each end.
+	/// </summary>
+	/// <remarks>The <see cref="ErrorBarItem"/> type is intended for displaying
+	/// confidence intervals, candlesticks, stock High-Low charts, etc.  It is
+	/// technically not a bar, since it is drawn as a vertical or horizontal line.
+	/// The default symbol at each end of the "bar" is <see cref="SymbolType.HDash"/>,
+	/// which creates an "I-Beam".  For horizontal bars
+	/// (<see cref="ZedGraph.BarBase.Y"/> or
+	/// <see cref="ZedGraph.BarBase.Y2"/>), you will need to change the symbol to
+	/// <see cref="SymbolType.VDash"/> to get horizontal "I-Beams".
+	/// Since the horizontal segments are actually symbols, their widths are
+	/// controlled by the symbol size in <see cref="ZedGraph.ErrorBar.Symbol"/>,
+	/// specified in points (1/72nd inch).  The position of each "I-Beam" is set
+	/// according to the <see cref="PointPair"/> values.  The independent axis
+	/// is assigned with <see cref="BarSettings.Base"/>, and is a
+	/// <see cref="ZedGraph.BarBase"/> enum type.</remarks>
+	/// <author> John Champion </author>
+	/// <version> $Revision: 3.19 $ $Date: 2007-04-16 00:03:01 $ </version>
+	[Serializable]
+	public class ErrorBarItem : CurveItem, ICloneable, ISerializable
+	{
+	#region Fields
+		/// <summary>
+		/// Private field that stores a reference to the <see cref="ZedGraph.ErrorBar"/>
+		/// class defined for this <see cref="ErrorBarItem"/>.  Use the public
+		/// property <see cref="ErrorBar"/> to access this value.
+		/// </summary>
+		private ErrorBar _bar;
 
-    /// <summary>
-    ///   Private field that stores a reference to the <see cref="ZedGraph.ErrorBar" />
-    ///   class defined for this <see cref="ErrorBarItem" />.  Use the public
-    ///   property <see cref="ErrorBar" /> to access this value.
-    /// </summary>
-    private readonly ErrorBar _bar;
+	#endregion
 
-    #endregion
+	#region Properties
+		/// <summary>
+		/// Gets a reference to the <see cref="ZedGraph.ErrorBar"/> class defined
+		/// for this <see cref="ErrorBarItem"/>.
+		/// </summary>
+		public ErrorBar Bar
+		{
+			get { return _bar; }
+		}
 
-    #region Properties
+		/// <summary>
+		/// Gets a flag indicating if the Z data range should be included in the axis scaling calculations.
+		/// </summary>
+		/// <param name="pane">The parent <see cref="GraphPane" /> of this <see cref="CurveItem" />.
+		/// </param>
+		/// <value>true if the Z data are included, false otherwise</value>
+		override internal bool IsZIncluded( GraphPane pane )
+		{
+			return true;
+		}
 
-    /// <summary>
-    ///   Gets a reference to the <see cref="ZedGraph.ErrorBar" /> class defined
-    ///   for this <see cref="ErrorBarItem" />.
-    /// </summary>
-    public ErrorBar Bar
-    {
-      get { return _bar; }
-    }
+		/// <summary>
+		/// Gets a flag indicating if the X axis is the independent axis for this <see cref="CurveItem" />
+		/// </summary>
+		/// <param name="pane">The parent <see cref="GraphPane" /> of this <see cref="CurveItem" />.
+		/// </param>
+		/// <value>true if the X axis is independent, false otherwise</value>
+		override internal bool IsXIndependent( GraphPane pane )
+		{
+			return pane._barSettings.Base == BarBase.X;
+		}
 
-    /// <summary>
-    ///   Gets a flag indicating if the Z data range should be included in the axis scaling calculations.
-    /// </summary>
-    /// <param name="pane">
-    ///   The parent <see cref="GraphPane" /> of this <see cref="CurveItem" />.
-    /// </param>
-    /// <value>true if the Z data are included, false otherwise</value>
-    internal override bool IsZIncluded(GraphPane pane)
-    {
-      return true;
-    }
+	#endregion
 
-    /// <summary>
-    ///   Gets a flag indicating if the X axis is the independent axis for this <see cref="CurveItem" />
-    /// </summary>
-    /// <param name="pane">
-    ///   The parent <see cref="GraphPane" /> of this <see cref="CurveItem" />.
-    /// </param>
-    /// <value>true if the X axis is independent, false otherwise</value>
-    internal override bool IsXIndependent(GraphPane pane)
-    {
-      return pane._barSettings.Base == BarBase.X;
-    }
+	#region Constructors
+		/// <summary>
+		/// Create a new <see cref="ErrorBarItem"/>, specifying only the legend label.
+		/// </summary>
+		/// <param name="label">The label that will appear in the legend.</param>
+		public ErrorBarItem( string label ) : base( label )
+		{
+			_bar = new ErrorBar();
+		}
+		
+		/// <summary>
+		/// Create a new <see cref="ErrorBarItem"/> using the specified properties.
+		/// </summary>
+		/// <param name="label">The label that will appear in the legend.</param>
+		/// <param name="x">An array of double precision values that define
+		/// the X axis values for this curve</param>
+		/// <param name="y">An array of double precision values that define
+		/// the Y axis values for this curve</param>
+		/// <param name="lowValue">An array of double precision values that define
+		/// the lower dependent values for this curve</param>
+		/// <param name="color">A <see cref="Color"/> value that will be applied to
+		/// the <see cref="Line"/> properties.
+		/// </param>
+		public ErrorBarItem( string label, double[] x, double[] y, double[] lowValue,
+							System.Drawing.Color color )
+			: this( label, new PointPairList( x, y, lowValue ), color )
+		{
+		}
 
-    #endregion
+		/// <summary>
+		/// Create a new <see cref="ErrorBarItem"/> using the specified properties.
+		/// </summary>
+		/// <param name="label">The label that will appear in the legend.</param>
+		/// <param name="points">A <see cref="IPointList"/> of double precision values that define
+		/// the X, Y and lower dependent values for this curve</param>
+		/// <param name="color">A <see cref="Color"/> value that will be applied to
+		/// the <see cref="Line"/> properties.
+		/// </param>
+		public ErrorBarItem( string label, IPointList points, Color color )
+			: base( label, points )
+		{
+			_bar = new ErrorBar( color );
+		}
 
-    #region Constructors
+		/// <summary>
+		/// The Copy Constructor
+		/// </summary>
+		/// <param name="rhs">The <see cref="ErrorBarItem"/> object from which to copy</param>
+		public ErrorBarItem( ErrorBarItem rhs ) : base( rhs )
+		{
+			_bar = new ErrorBar( rhs.Bar );
+		}
 
-    /// <summary>
-    ///   Create a new <see cref="ErrorBarItem" />, specifying only the legend label.
-    /// </summary>
-    /// <param name="label">The label that will appear in the legend.</param>
-    public ErrorBarItem(string label, int zOrder = -1) : base(label, zOrder)
-    {
-      _bar = new ErrorBar();
-    }
+		/// <summary>
+		/// Implement the <see cref="ICloneable" /> interface in a typesafe manner by just
+		/// calling the typed version of <see cref="Clone" />
+		/// </summary>
+		/// <returns>A deep copy of this object</returns>
+		object ICloneable.Clone()
+		{
+			return this.Clone();
+		}
 
-    /// <summary>
-    ///   Create a new <see cref="ErrorBarItem" /> using the specified properties.
-    /// </summary>
-    /// <param name="label">The label that will appear in the legend.</param>
-    /// <param name="x">
-    ///   An array of double precision values that define
-    ///   the X axis values for this curve
-    /// </param>
-    /// <param name="y">
-    ///   An array of double precision values that define
-    ///   the Y axis values for this curve
-    /// </param>
-    /// <param name="lowValue">
-    ///   An array of double precision values that define
-    ///   the lower dependent values for this curve
-    /// </param>
-    /// <param name="color">
-    ///   A <see cref="Color" /> value that will be applied to
-    ///   the <see cref="Line" /> properties.
-    /// </param>
-    public ErrorBarItem(string label, double[] x, double[] y, double[] lowValue,
-                        Color color, int zOrder = -1)
-      : this(label, new PointPairList(x, y, lowValue), color, zOrder) {}
+		/// <summary>
+		/// Typesafe, deep-copy clone method.
+		/// </summary>
+		/// <returns>A new, independent copy of this class</returns>
+		public ErrorBarItem Clone()
+		{
+			return new ErrorBarItem( this );
+		}
 
-    /// <summary>
-    ///   Create a new <see cref="ErrorBarItem" /> using the specified properties.
-    /// </summary>
-    /// <param name="label">The label that will appear in the legend.</param>
-    /// <param name="points">
-    ///   A <see cref="IPointList" /> of double precision values that define
-    ///   the X, Y and lower dependent values for this curve
-    /// </param>
-    /// <param name="color">
-    ///   A <see cref="Color" /> value that will be applied to
-    ///   the <see cref="Line" /> properties.
-    /// </param>
-    public ErrorBarItem(string label, IPointList points, Color color, int zOrder = -1)
-      : base(label, points, zOrder)
-    {
-      _bar = new ErrorBar(color);
-    }
+	#endregion
 
-    /// <summary>
-    ///   The Copy Constructor
-    /// </summary>
-    /// <param name="rhs">The <see cref="ErrorBarItem" /> object from which to copy</param>
-    public ErrorBarItem(ErrorBarItem rhs) : base(rhs)
-    {
-      _bar = new ErrorBar(rhs.Bar);
-    }
+	#region Serialization
+		/// <summary>
+		/// Current schema value that defines the version of the serialized file
+		/// </summary>
+		public const int schema2 = 10;
 
-    /// <summary>
-    ///   Implement the <see cref="ICloneable" /> interface in a typesafe manner by just
-    ///   calling the typed version of <see cref="Clone" />
-    /// </summary>
-    /// <returns>A deep copy of this object</returns>
-    object ICloneable.Clone()
-    {
-      return Clone();
-    }
+		/// <summary>
+		/// Constructor for deserializing objects
+		/// </summary>
+		/// <param name="info">A <see cref="SerializationInfo"/> instance that defines the serialized data
+		/// </param>
+		/// <param name="context">A <see cref="StreamingContext"/> instance that contains the serialized data
+		/// </param>
+		protected ErrorBarItem( SerializationInfo info, StreamingContext context ) : base( info, context )
+		{
+			// The schema value is just a file version parameter.  You can use it to make future versions
+			// backwards compatible as new member variables are added to classes
+			int sch = info.GetInt32( "schema2" );
 
-    /// <summary>
-    ///   Typesafe, deep-copy clone method.
-    /// </summary>
-    /// <returns>A new, independent copy of this class</returns>
-    public ErrorBarItem Clone()
-    {
-      return new ErrorBarItem(this);
-    }
+			_bar = (ErrorBar) info.GetValue( "bar", typeof(ErrorBar) );
 
-    #endregion
+			// This is now just a dummy variable, since barBase was removed
+			BarBase barBase = (BarBase) info.GetValue( "barBase", typeof(BarBase) );
+		}
+		/// <summary>
+		/// Populates a <see cref="SerializationInfo"/> instance with the data needed to serialize the target object
+		/// </summary>
+		/// <param name="info">A <see cref="SerializationInfo"/> instance that defines the serialized data</param>
+		/// <param name="context">A <see cref="StreamingContext"/> instance that contains the serialized data</param>
+		[SecurityPermissionAttribute(SecurityAction.Demand,SerializationFormatter=true)]
+		public override void GetObjectData( SerializationInfo info, StreamingContext context )
+		{
+			base.GetObjectData( info, context );
+			info.AddValue( "schema2", schema2 );
+			info.AddValue( "bar", _bar );
 
-    #region Serialization
+			// BarBase is now just a dummy value, since the GraphPane.BarBase is used exclusively
+			info.AddValue( "barBase", BarBase.X );
+		}
+	#endregion
 
-    /// <summary>
-    ///   Current schema value that defines the version of the serialized file
-    /// </summary>
-    public const int schema2 = 10;
+	#region Methods
+		/// <summary>
+		/// Do all rendering associated with this <see cref="ErrorBarItem"/> to the specified
+		/// <see cref="Graphics"/> device.  This method is normally only
+		/// called by the Draw method of the parent <see cref="ZedGraph.CurveList"/>
+		/// collection object.
+		/// </summary>
+		/// <param name="g">
+		/// A graphic device object to be drawn into.  This is normally e.Graphics from the
+		/// PaintEventArgs argument to the Paint() method.
+		/// </param>
+		/// <param name="pane">
+		/// A reference to the <see cref="ZedGraph.GraphPane"/> object that is the parent or
+		/// owner of this object.
+		/// </param>
+		/// <param name="pos">The ordinal position of the current <see cref="ErrorBarItem"/>
+		/// curve.</param>
+		/// <param name="scaleFactor">
+		/// The scaling factor to be used for rendering objects.  This is calculated and
+		/// passed down by the parent <see cref="ZedGraph.GraphPane"/> object using the
+		/// <see cref="PaneBase.CalcScaleFactor"/> method, and is used to proportionally adjust
+		/// font sizes, etc. according to the actual size of the graph.
+		/// </param>
+		override public void Draw( Graphics g, GraphPane pane, int pos, float scaleFactor  )
+		{
+			if ( _isVisible )
+			{
+				_bar.Draw( g, pane, this, this.BaseAxis( pane ),
+								this.ValueAxis( pane ), scaleFactor );
+			}
+		}		
 
-    /// <summary>
-    ///   Constructor for deserializing objects
-    /// </summary>
-    /// <param name="info">
-    ///   A <see cref="SerializationInfo" /> instance that defines the serialized data
-    /// </param>
-    /// <param name="context">
-    ///   A <see cref="StreamingContext" /> instance that contains the serialized data
-    /// </param>
-    protected ErrorBarItem(SerializationInfo info, StreamingContext context)
-      : base(info, context)
-    {
-      // The schema value is just a file version parameter.  You can use it to make future versions
-      // backwards compatible as new member variables are added to classes
-      var sch = info.GetInt32("schema2");
+		/// <summary>
+		/// Draw a legend key entry for this <see cref="ErrorBarItem"/> at the specified location
+		/// </summary>
+		/// <param name="g">
+		/// A graphic device object to be drawn into.  This is normally e.Graphics from the
+		/// PaintEventArgs argument to the Paint() method.
+		/// </param>
+        /// <param name="pane">
+        /// A reference to the <see cref="ZedGraph.GraphPane"/> object that is the parent or
+        /// owner of this object.
+        /// </param>
+        /// <param name="rect">The <see cref="RectangleF"/> struct that specifies the
+        /// location for the legend key</param>
+		/// <param name="scaleFactor">
+		/// The scaling factor to be used for rendering objects.  This is calculated and
+		/// passed down by the parent <see cref="ZedGraph.GraphPane"/> object using the
+		/// <see cref="PaneBase.CalcScaleFactor"/> method, and is used to proportionally adjust
+		/// font sizes, etc. according to the actual size of the graph.
+		/// </param>
+		override public void DrawLegendKey( Graphics g, GraphPane pane, RectangleF rect,
+									float scaleFactor )
+		{
+			float pixBase, pixValue, pixLowValue;
 
-      _bar = (ErrorBar)info.GetValue("bar", typeof(ErrorBar));
+			if ( pane._barSettings.Base == BarBase.X )
+			{
+				pixBase = rect.Left + rect.Width / 2.0F;
+				pixValue = rect.Top;
+				pixLowValue = rect.Bottom;
+			}
+			else
+			{
+				pixBase = rect.Top + rect.Height / 2.0F;
+				pixValue = rect.Right;
+				pixLowValue = rect.Left;
+			}
 
-      // This is now just a dummy variable, since barBase was removed
-      var barBase = (BarBase)info.GetValue("barBase", typeof(BarBase));
-    }
+			using ( Pen pen = new Pen( _bar.Color, _bar.PenWidth ) )
+			{
+				this.Bar.Draw( g, pane, pane._barSettings.Base == BarBase.X, pixBase, pixValue,
+									pixLowValue, scaleFactor, pen, false, null );
+			}
+		}
 
-    /// <summary>
-    ///   Populates a <see cref="SerializationInfo" /> instance with the data needed to serialize the target object
-    /// </summary>
-    /// <param name="info">A <see cref="SerializationInfo" /> instance that defines the serialized data</param>
-    /// <param name="context">A <see cref="StreamingContext" /> instance that contains the serialized data</param>
-    [SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
-    public override void GetObjectData(SerializationInfo info, StreamingContext context)
-    {
-      base.GetObjectData(info, context);
-      info.AddValue("schema2", schema2);
-      info.AddValue("bar", _bar);
+		/// <summary>
+		/// Determine the coords for the rectangle associated with a specified point for 
+		/// this <see cref="CurveItem" />
+		/// </summary>
+		/// <param name="pane">The <see cref="GraphPane" /> to which this curve belongs</param>
+		/// <param name="i">The index of the point of interest</param>
+		/// <param name="coords">A list of coordinates that represents the "rect" for
+		/// this point (used in an html AREA tag)</param>
+		/// <returns>true if it's a valid point, false otherwise</returns>
+		override public bool GetCoords( GraphPane pane, int i, out string coords )
+		{
+			coords = string.Empty;
 
-      // BarBase is now just a dummy value, since the GraphPane.BarBase is used exclusively
-      info.AddValue("barBase", BarBase.X);
-    }
+			if ( i < 0 || i >= _points.Count )
+				return false;
 
-    #endregion
+			Axis valueAxis = ValueAxis( pane );
+			Axis baseAxis = BaseAxis( pane );
 
-    #region Methods
+			float scaledSize = _bar.Symbol.Size * pane.CalcScaleFactor();
 
-    /// <summary>
-    ///   Do all rendering associated with this <see cref="ErrorBarItem" /> to the specified
-    ///   <see cref="Graphics" /> device.  This method is normally only
-    ///   called by the Draw method of the parent <see cref="ZedGraph.CurveList" />
-    ///   collection object.
-    /// </summary>
-    /// <param name="g">
-    ///   A graphic device object to be drawn into.  This is normally e.Graphics from the
-    ///   PaintEventArgs argument to the Paint() method.
-    /// </param>
-    /// <param name="pane">
-    ///   A reference to the <see cref="ZedGraph.GraphPane" /> object that is the parent or
-    ///   owner of this object.
-    /// </param>
-    /// <param name="pos">
-    ///   The ordinal position of the current <see cref="ErrorBarItem" />
-    ///   curve.
-    /// </param>
-    /// <param name="scaleFactor">
-    ///   The scaling factor to be used for rendering objects.  This is calculated and
-    ///   passed down by the parent <see cref="ZedGraph.GraphPane" /> object using the
-    ///   <see cref="PaneBase.CalcScaleFactor" /> method, and is used to proportionally adjust
-    ///   font sizes, etc. according to the actual size of the graph.
-    /// </param>
-    public override void Draw(Graphics g, GraphPane pane, int pos, float scaleFactor)
-    {
-      if (IsVisible)
-        _bar.Draw(g, pane, this, BaseAxis(pane),
-                  ValueAxis(pane), scaleFactor);
-    }
+			// pixBase = pixel value for the bar center on the base axis
+			// pixHiVal = pixel value for the bar top on the value axis
+			// pixLowVal = pixel value for the bar bottom on the value axis
+			float pixBase, pixHiVal, pixLowVal;
 
-    /// <summary>
-    ///   Draw a legend key entry for this <see cref="ErrorBarItem" /> at the specified location
-    /// </summary>
-    /// <param name="g">
-    ///   A graphic device object to be drawn into.  This is normally e.Graphics from the
-    ///   PaintEventArgs argument to the Paint() method.
-    /// </param>
-    /// <param name="pane">
-    ///   A reference to the <see cref="ZedGraph.GraphPane" /> object that is the parent or
-    ///   owner of this object.
-    /// </param>
-    /// <param name="rect">
-    ///   The <see cref="RectangleF" /> struct that specifies the
-    ///   location for the legend key
-    /// </param>
-    /// <param name="scaleFactor">
-    ///   The scaling factor to be used for rendering objects.  This is calculated and
-    ///   passed down by the parent <see cref="ZedGraph.GraphPane" /> object using the
-    ///   <see cref="PaneBase.CalcScaleFactor" /> method, and is used to proportionally adjust
-    ///   font sizes, etc. according to the actual size of the graph.
-    /// </param>
-    public override void DrawLegendKey(Graphics g, GraphPane pane, RectangleF rect,
-                                       float scaleFactor)
-    {
-      float pixBase, pixValue, pixLowValue;
+			float clusterWidth = pane.BarSettings.GetClusterWidth();
+			float barWidth = GetBarWidth( pane );
+			float clusterGap = pane._barSettings.MinClusterGap * barWidth;
+			float barGap = barWidth * pane._barSettings.MinBarGap;
 
-      if (pane._barSettings.Base == BarBase.X)
-      {
-        pixBase = rect.Left + rect.Width/2.0F;
-        pixValue = rect.Top;
-        pixLowValue = rect.Bottom;
-      }
-      else
-      {
-        pixBase = rect.Top + rect.Height/2.0F;
-        pixValue = rect.Right;
-        pixLowValue = rect.Left;
-      }
+			// curBase = the scale value on the base axis of the current bar
+			// curHiVal = the scale value on the value axis of the current bar
+			// curLowVal = the scale value of the bottom of the bar
+			double curBase, curLowVal, curHiVal;
+			ValueHandler valueHandler = new ValueHandler( pane, false );
+			valueHandler.GetValues( this, i, out curBase, out curLowVal, out curHiVal );
 
-      using (var pen = new Pen(_bar.Color, _bar.PenWidth))
-      {
-        Bar.Draw(g, pane, pane._barSettings.Base == BarBase.X, pixBase, pixValue,
-                 pixLowValue, scaleFactor, pen, false, null);
-      }
-    }
+			// Any value set to double max is invalid and should be skipped
+			// This is used for calculated values that are out of range, divide
+			//   by zero, etc.
+			// Also, any value <= zero on a log scale is invalid
 
-    /// <summary>
-    ///   Determine the coords for the rectangle associated with a specified point for
-    ///   this <see cref="CurveItem" />
-    /// </summary>
-    /// <param name="pane">The <see cref="GraphPane" /> to which this curve belongs</param>
-    /// <param name="i">The index of the point of interest</param>
-    /// <param name="coords">
-    ///   A list of coordinates that represents the "rect" for
-    ///   this point (used in an html AREA tag)
-    /// </param>
-    /// <returns>true if it's a valid point, false otherwise</returns>
-    public override bool GetCoords(GraphPane pane, int i, out string coords)
-    {
-      coords = string.Empty;
+			if ( !_points[i].IsInvalid3D )
+			{
+				// calculate a pixel value for the top of the bar on value axis
+				pixLowVal = valueAxis.Scale.Transform( _isOverrideOrdinal, i, curLowVal );
+				pixHiVal = valueAxis.Scale.Transform( _isOverrideOrdinal, i, curHiVal );
+				// calculate a pixel value for the center of the bar on the base axis
+				pixBase = baseAxis.Scale.Transform( _isOverrideOrdinal, i, curBase );
 
-      if ((i < 0) || (i >= Points.Count))
-        return false;
+				// Calculate the pixel location for the side of the bar (on the base axis)
+				float pixSide = pixBase - scaledSize / 2.0F;
 
-      var valueAxis = ValueAxis(pane);
-      var baseAxis = BaseAxis(pane);
+				// Draw the bar
+				if ( baseAxis is XAxis || baseAxis is X2Axis )
+					coords = String.Format( "{0:f0},{1:f0},{2:f0},{3:f0}",
+								pixSide, pixLowVal,
+								pixSide + scaledSize, pixHiVal );
+				else
+					coords = String.Format( "{0:f0},{1:f0},{2:f0},{3:f0}",
+								pixLowVal, pixSide,
+								pixHiVal, pixSide + scaledSize );
 
-      var scaledSize = _bar.Symbol.Size*pane.CalcScaleFactor();
+				return true;
+			}
 
-      // pixBase = pixel value for the bar center on the base axis
-      // pixHiVal = pixel value for the bar top on the value axis
-      // pixLowVal = pixel value for the bar bottom on the value axis
+			return false;
+		}
 
-      var clusterWidth = pane.BarSettings.GetClusterWidth();
-      var barWidth = GetBarWidth(pane);
-      var clusterGap = pane._barSettings.MinClusterGap*barWidth;
-      var barGap = barWidth*pane._barSettings.MinBarGap;
+	#endregion
 
-      // curBase = the scale value on the base axis of the current bar
-      // curHiVal = the scale value on the value axis of the current bar
-      // curLowVal = the scale value of the bottom of the bar
-      double curBase, curLowVal, curHiVal;
-      var valueHandler = new ValueHandler(pane, false);
-      valueHandler.GetValues(this, i, out curBase, out curLowVal, out curHiVal);
-
-      // Any value set to double max is invalid and should be skipped
-      // This is used for calculated values that are out of range, divide
-      //   by zero, etc.
-      // Also, any value <= zero on a log scale is invalid
-
-      if (Points[i].IsInvalid) return false;
-
-      // calculate a pixel value for the top of the bar on value axis
-      var pixLowVal = valueAxis.Scale.Transform(IsOverrideOrdinal, i, curLowVal);
-      var pixHiVal  = valueAxis.Scale.Transform(IsOverrideOrdinal, i, curHiVal);
-      // calculate a pixel value for the center of the bar on the base axis
-      var pixBase   = baseAxis.Scale.Transform(IsOverrideOrdinal, i, curBase);
-      // Calculate the pixel location for the side of the bar (on the base axis)
-      var pixSide   = pixBase - scaledSize/2.0F;
-
-      // Draw the bar
-      coords = baseAxis is IXAxis
-             ? $"{pixSide:f0},{pixLowVal:f0},{pixSide + scaledSize:f0},{pixHiVal:f0}"
-             : $"{pixLowVal:f0},{pixSide:f0},{pixHiVal:f0},{pixSide + scaledSize:f0}";
-
-      return true;
-    }
-
-    #endregion
-  }
+	}
 }
