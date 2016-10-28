@@ -1147,25 +1147,52 @@ namespace ZedGraph {
 
         private List<PointF> ClipAreaPolygonPoints(List<PointF> points, RectangleF rect) {
             List<PointF> newPoints = new List<PointF>(points.Count);
-
-            for (int i = 0; i < points.Count - 1; ++i) {
-                float x0 = points[i].X;
-                float x1 = points[i + 1].X;
-                float y0 = points[i].Y;
-                float y1 = points[i + 1].Y;
+            float x0 = points[0].X;
+            float y0 = points[0].Y;
+            for (int i = 1; i < points.Count; ++i) {                
+                float x1 = points[i].X;                
+                float y1 = points[i].Y;
 
                 bool isSegmentValid = !((IsOut(Edges.Left, x0, rect) && IsOut(Edges.Left, x1, rect)) || (IsOut(Edges.Right, x0, rect) && IsOut(Edges.Right, x1, rect)));
                 if (isSegmentValid) {
-                    float xFrom = Math.Max(rect.Left, x0);
-                    float xTo = Math.Min(rect.Right, x1);
 
-                    float yFrom = y1 + (y0 - y1) * (xFrom - x1) / (x0 - x1);
-                    float yTo = y1 + (y0 - y1) * (xTo - x1) / (x0 - x1);
 
-                    if (yFrom < rect.Top) {
-
+                    if (y0 < rect.Top && y1 > rect.Top) { //crosses the top edge (falling)
+                        x0 = x1 + (x0 - x1) * (rect.Top - y1) / (y0 - y1);
+                        y0 = rect.Top;
                     }
+
+                    if (y0 > rect.Top && y1 < rect.Top) { //crosses the top edge (rising)
+                        x1 = x1 + (x0 - x1) * (rect.Top - y1) / (y0 - y1);
+                        y1 = rect.Top;
+                    }
+
+                    if (y0 < rect.Bottom && y1 > rect.Bottom) { //crosses the bottom edge (falling)
+                        x1 = x1 + (x0 - x1) * (rect.Bottom - y1) / (y0 - y1);
+                        y1 = rect.Bottom;
+                    }
+
+                    if (y0 > rect.Bottom && y1 < rect.Bottom) { //crosses the bottom edge (rising)
+                        x0 = x1 + (x0 - x1) * (rect.Bottom - y1) / (y0 - y1);
+                        y0 = rect.Bottom;
+                    }
+
+                    if (x0 < rect.Left && x1 > rect.Left) { //crosses the left edge
+                        y0 = y1 + (y0 - y1) * (rect.Left - x1) / (x0 - x1);
+                        x0 = rect.Left;
+                    }
+
+                    if (x0 < rect.Right && x1 > rect.Right) { //crosses the right edge
+                        y1 = y1 + (y0 - y1) * (rect.Right - x1) / (x0 - x1);
+                        x1 = rect.Right;
+                    }
+
+                    newPoints.Add(new PointF(x0, y0));
+                    newPoints.Add(new PointF(x1, y1));                    
                 }
+
+                x0 = points[i].X;
+                y0 = points[i].Y;
             }
 
             return newPoints;
@@ -1193,10 +1220,10 @@ namespace ZedGraph {
             IPointList points = curve.Points;
             RectangleF chartRect = pane.Chart.Rect;
 
-            float maxDrawX = (curve.ClipAndInterpolateToChartArea) ? chartRect.Right : 1000000.0f;
-            float maxDrawY = (curve.ClipAndInterpolateToChartArea) ? chartRect.Bottom : 1000000.0f;
-            float minDrawX = (curve.ClipAndInterpolateToChartArea) ? chartRect.Left : -1000000.0f;
-            float minDrawY = (curve.ClipAndInterpolateToChartArea) ? chartRect.Right : -1000000.0f;
+            float maxDrawX =  1000000.0f;
+            float maxDrawY =  1000000.0f;
+            float minDrawX = -1000000.0f;
+            float minDrawY =  -1000000.0f;
 
             if (this.IsVisible && !this.Color.IsEmpty && points != null) {
                 int index = 0;
@@ -1237,8 +1264,9 @@ namespace ZedGraph {
                         Axis yAxis = curve.GetYAxis(pane);
                         curY = yAxis.Scale.Transform(curve.IsOverrideOrdinal, i, y);
 
-                        if (curX < minDrawX || curY < minDrawY || curX > maxDrawX || curY > maxDrawY)
+                        if (!curve.ClipAndInterpolateToChartArea && (curX < minDrawX || curY < minDrawY || curX > maxDrawX || curY > maxDrawY)) {
                             continue;
+                        }
 
                         // Add the pixel value pair into the points array
                         // Two points are added for step type curves
