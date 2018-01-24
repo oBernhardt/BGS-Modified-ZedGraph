@@ -485,8 +485,8 @@ namespace ZedGraph
 		/// corresponds to the values of the Y2 scale.  Values outside the scale range will be
 		/// outside the <see cref="Chart.Rect" />.
 		/// </remarks>
-		XChartFractionY2Scale
-
+		XChartFractionY2Scale,
+        PanePixelLocation
 	}
 	
 	/// <summary>
