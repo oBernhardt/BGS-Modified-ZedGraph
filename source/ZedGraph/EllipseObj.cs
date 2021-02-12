@@ -78,7 +78,7 @@ namespace ZedGraph {
         /// <see cref="ZedGraph.Location.CoordinateFrame" />.</param>
         /// <param name="height">The height of this <see cref="BoxObj" />.  This will be in units determined by
         /// <see cref="ZedGraph.Location.CoordinateFrame" />.</param>
-        public EllipseObj(double x, double y, double width, double height, Color borderColor, Color fillColor, double rotationDegree= 0.0)
+        public EllipseObj(double x, double y, double width, double height, Color borderColor, Color fillColor, double rotationDegree = 0.0)
             : base(x, y, width, height, borderColor, fillColor) {
             this.rotationDegree = rotationDegree;
         }
@@ -188,10 +188,9 @@ namespace ZedGraph {
         /// font sizes, etc. according to the actual size of the graph.
         /// </param>
         public override void Draw(Graphics g, PaneBase pane, float scaleFactor) {
-            RectangleF location = base.Location.TransformRect(pane);
-            RectangleF rect = location;
+            RectangleF rect = base.Location.TransformRect(pane);
             if (!this.rotationDegree.Equals((double)0.0)) {
-                rect = base.beginRotate(g, pane, base.rotationDegree, location);
+                rect = base.beginRotate(g, pane, base.rotationDegree);
             }
             if (((Math.Abs(rect.Left) < 100000f) && (Math.Abs(rect.Top) < 100000f)) && ((Math.Abs(rect.Right) < 100000f) && (Math.Abs(rect.Bottom) < 100000f))) {
                 if (base._fill.IsVisible) {
@@ -206,9 +205,11 @@ namespace ZedGraph {
                 }
             }
             if (!this.rotationDegree.Equals((double)0.0)) {
-                base.finishRotate(g, pane, base.rotationDegree, location);
+                base.finishRotate(g, pane, base.rotationDegree, rect);
             }
         }
+
+
 
         /// <summary>
         /// Determine if the specified screen point lies inside the bounding box of this

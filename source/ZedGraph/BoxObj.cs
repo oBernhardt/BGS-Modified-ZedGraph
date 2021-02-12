@@ -188,11 +188,61 @@ namespace ZedGraph {
             this.Fill = rhs.Fill.Clone();
         }
 
-        protected RectangleF beginRotate(Graphics g, PaneBase pane, double degree, RectangleF location) {
-            this.getRotationInfo(g, pane, degree, location, out float num, out float num2, out float num3);
-            g.TranslateTransform(num, num2);
-            g.RotateTransform(-num3);
-            return new RectangleF(-(location.Width * 0.5f), -(location.Height * 0.5f), location.Width, location.Height);
+        protected RectangleF beginRotate(Graphics g, PaneBase pane, double degree) {
+            this.getRotationInfo(g, pane, degree, out PointF screenLocation, out SizeF screenSize, out float screenDegree);
+
+            calculateCenter(new RectangleF(screenLocation, screenSize), out float xCenter, out float yCenter);
+            g.TranslateTransform(xCenter, yCenter);
+            g.RotateTransform(-screenDegree);
+            return new RectangleF(-(screenSize.Width * 0.5f), -(screenSize.Height * 0.5f), screenSize.Width, screenSize.Height);
+        }
+
+        private static float getVectorLength(PointF[] points) {
+            return (float)Math.Sqrt(Math.Pow(points[0].X - points[1].X, 2) + Math.Pow(points[0].Y - points[1].Y, 2));
+        }
+
+        private static PointF[] TransformToScreenSpace(PointF[] points, PaneBase pane, CoordType coord) {
+            PointF[] t = new PointF[points.Length];
+
+            for (int i = 0; i < points.Length; ++i) {
+                t[i] = pane.TransformCoord(points[i].X, points[i].Y, coord);
+            }
+            return t;
+        }
+
+        private static double radToDegree(double rad) {
+            return (rad * 180.0) / Math.PI;
+        }
+
+        public static double degreeToRad(double degree) {
+            return (degree * Math.PI) / 180.0;
+        }
+
+        private static PointF[] Transform(PointF[] points, float xOffset, float yOffset) {
+            PointF[] t = new PointF[points.Length];
+
+            for (int i = 0; i < points.Length; ++i) {
+                PointF p = points[i];
+                t[i] = new PointF(p.X - xOffset, p.Y - yOffset);
+            }
+            return t;
+        }
+
+        private static PointF[] Rotate(PointF[] points, double rad) {
+            PointF[] t = new PointF[points.Length];
+
+            for (int i = 0; i < points.Length; ++i) {
+                PointF p = points[i];
+                double x = p.X * Math.Cos(rad) - p.Y * Math.Sin(rad);
+                double y = p.X * Math.Sin(rad) + p.Y * Math.Cos(rad);
+                t[i] = new PointF((float)x, (float)y);
+            }
+            return t;
+        }
+
+        private static void calculateCenter(RectangleF rect, out float centerx, out float centery) {
+            centerx = rect.X + (rect.Width / 2.0f);
+            centery = rect.Y + (rect.Height / 2.0f);
         }
 
         /// <summary>
@@ -297,18 +347,52 @@ namespace ZedGraph {
             g.ResetTransform();
         }
 
-        protected void getRotationInfo(Graphics g, PaneBase pane, double degree, RectangleF location, out float centerx, out float centery, out float screenDegree) {
-            double a = (degree / 180.0) * Math.PI;
-            double y = (1.0 * Math.Sin(a)) + (0.0 * Math.Cos(a));
-            PointF tf = new Location((1.0 * Math.Cos(a)) - (0.0 * Math.Sin(a)), y, CoordType.AxisXYScale).Transform(pane);
-            PointF tf2 = new Location(0.0, 0.0, CoordType.AxisXYScale).Transform(pane);
-            tf = new PointF(tf.X - tf2.X, tf2.Y - tf.Y);
-            double introduced7 = Math.Pow((double)tf.X, 2.0);
-            double num3 = Math.Sqrt(introduced7 + Math.Pow((double)tf.Y, 2.0));
-            double num4 = tf.Y;
-            screenDegree = (float)((Math.Asin(num4 / num3) * 180.0) / 3.1415926535897931);
-            centerx = location.X + (location.Width * 0.5f);
-            centery = location.Y + (location.Height * 0.5f);
+        protected void getRotationInfo(Graphics g, PaneBase pane, double degree, out PointF screenLocation, out SizeF screenSize, out float screenDegree) {
+            float centerX; float centerY;
+            toHeightAndWidthVector(this.Location.Rect, out PointF[] widthVector, out PointF[] heightVector, out centerX, out centerY);
+
+            Transform(widthVector, centerX, centerY);
+            Transform(heightVector, centerX, centerY);
+
+            //Rotate the height and the width vector in chart-space
+            widthVector = Rotate(widthVector, degreeToRad(this.rotationDegree));
+            heightVector = Rotate(heightVector, degreeToRad(this.rotationDegree));
+
+            Transform(widthVector, -centerX, -centerY);
+            Transform(heightVector, -centerX, -centerY);
+
+            //Convert the rotated hight and width vector to screenspace
+            widthVector = TransformToScreenSpace(widthVector, pane, base.Location.CoordinateFrame);
+            heightVector = TransformToScreenSpace(heightVector, pane, base.Location.CoordinateFrame);
+
+            //calculate the length of the two vector in screenspace (to get the final drawing height and width)
+            screenSize = new SizeF(getVectorLength(widthVector), getVectorLength(heightVector));
+
+            //Calculate the new top-left location from the old center location and the new height and width
+            RectangleF tmpLocation = base.Location.TransformRect(pane);
+            calculateCenter(tmpLocation, out centerX, out centerY);
+            screenLocation = new PointF(centerX - (screenSize.Width / 2.0f), centerY - (screenSize.Height / 2.0f));
+
+            screenDegree = (float)radToDegree((float)Math.Atan((widthVector[1].X - widthVector[0].X) / (widthVector[1].Y - widthVector[0].Y))) + 90.0f;
+        }
+
+        public static void toHeightAndWidthVector(RectangleF rect, out PointF[] widthVector, out PointF[] heightVector, out float centerX, out float centerY) {
+            float x = (float)rect.X;
+            float y = (float)rect.Y; //move the coordidnates to bottom left
+            float w = (float)rect.Width;
+            float h = (float)rect.Height;
+
+            centerX = x + (w / 2.0f);
+            centerY = y - (h / 2.0f); //Minus because rect is defined by the top-left corner
+
+            widthVector = new PointF[]{
+                new PointF(x, centerY),
+                new PointF(x+w, centerY)
+            };
+            heightVector = new PointF[]{
+                new PointF(centerX, y),
+                new PointF(centerX, y-h) //Minus because rect is defined by the top-left corner
+            };
         }
 
         /// <summary>
