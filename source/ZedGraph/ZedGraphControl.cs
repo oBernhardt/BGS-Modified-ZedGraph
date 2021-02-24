@@ -505,11 +505,12 @@ namespace ZedGraph
 			base.MouseDown += new System.Windows.Forms.MouseEventHandler( this.ZedGraphControl_MouseDown );
 			base.MouseUp += new System.Windows.Forms.MouseEventHandler( this.ZedGraphControl_MouseUp );
 			base.MouseMove += new System.Windows.Forms.MouseEventHandler( this.ZedGraphControl_MouseMove );
+            base.MouseClick += new System.Windows.Forms.MouseEventHandler(this.ZedGraphControl_MouseClick);
 
-			//this.MouseWheel += new System.Windows.Forms.MouseEventHandler( this.ZedGraphControl_MouseWheel );
+            //this.MouseWheel += new System.Windows.Forms.MouseEventHandler( this.ZedGraphControl_MouseWheel );
 
-			// Use double-buffering for flicker-free updating:
-			SetStyle( ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint
+            // Use double-buffering for flicker-free updating:
+            SetStyle( ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint
 				| ControlStyles.DoubleBuffer | ControlStyles.ResizeRedraw, true );
 			//isTransparentBackground = false;
 			//SetStyle( ControlStyles.Opaque, false );

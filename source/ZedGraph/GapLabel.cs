@@ -173,4 +173,33 @@ namespace ZedGraph
 
 
 	}
+
+    public class ClickableLabel : GapLabel {
+
+        private Action clickAction = null;
+
+        public ClickableLabel(GapLabel rhs) : base(rhs) {
+        }
+
+        public ClickableLabel(string text, string fontFamily, float fontSize, Color color, bool isBold, bool isItalic, bool isUnderline) : base(text, fontFamily, fontSize, color, isBold, isItalic, isUnderline) {
+        }
+
+        protected ClickableLabel(SerializationInfo info, StreamingContext context) : base(info, context) {
+        }
+
+        public Action ClickAction {
+            get { return this.clickAction; }
+            set {
+                this.clickAction = value;
+                if (this.clickAction != null) {
+                    this._fontSpec.FontColor = System.Drawing.Color.FromArgb(43, 152, 212);
+                    this._fontSpec.IsUnderline = true;
+                }
+            }
+        }
+        public new GapLabel Clone() {
+            return new ClickableLabel(this);
+        }
+
+    }
 }

@@ -54,7 +54,7 @@ namespace ZedGraph {
         /// public property <see cref="Title"/> to access this value.
         /// </summary>
         [CLSCompliant(false)]
-        protected GapLabel _title;
+        protected ClickableLabel _title;
 
         /// <summary>Private field instance of the <see cref="ZedGraph.Legend"/> class.  Use the
         /// public property <see cref="PaneBase.Legend"/> to access this class.</summary>
@@ -278,7 +278,7 @@ namespace ZedGraph {
         /// <seealso cref="Default.FontUnderline"/>
         /// <seealso cref="Default.FontFamily"/>
         /// <seealso cref="Default.FontSize"/>
-        public Label Title {
+        public ClickableLabel Title {
             get { return _title; }
         }
 
@@ -428,7 +428,7 @@ namespace ZedGraph {
             _border = new Border(Default.IsBorderVisible, Default.BorderColor,
                 Default.BorderPenWidth);
 
-            _title = new GapLabel(title, Default.FontFamily,
+            _title = new ClickableLabel(title, Default.FontFamily,
                 Default.FontSize, Default.FontColor, Default.FontBold,
                 Default.FontItalic, Default.FontUnderline);
             _title._fontSpec.Fill.IsVisible = false;
@@ -456,10 +456,10 @@ namespace ZedGraph {
             // Copy the reference types by cloning
             _fill = rhs._fill.Clone();
             _border = rhs._border.Clone();
-            _title = rhs._title.Clone();
+            _title = (ClickableLabel) rhs._title.Clone();
 
             _legend = rhs.Legend.Clone();
-            _title = rhs._title.Clone();
+            _title = (ClickableLabel)rhs._title.Clone();
             _graphObjList = rhs._graphObjList.Clone();
 
             if (rhs._tag is ICloneable)
@@ -527,7 +527,7 @@ namespace ZedGraph {
 
             _rect = (RectangleF)info.GetValue("rect", typeof(RectangleF));
             _legend = (Legend)info.GetValue("legend", typeof(Legend));
-            _title = (GapLabel)info.GetValue("title", typeof(GapLabel));
+            _title = new ClickableLabel((GapLabel)info.GetValue("title", typeof(GapLabel)));
             //this.isShowTitle = info.GetBoolean( "isShowTitle" );
             _isFontsScaled = info.GetBoolean("isFontsScaled");
             _isPenWidthScaled = info.GetBoolean("isPenWidthScaled");
@@ -677,6 +677,8 @@ namespace ZedGraph {
             _border.Draw(g, this, scaleFactor, rect);
         }
 
+        private RectangleF? titleRectangle = null;
+
         /// <summary>
         /// Draw the <see cref="Title"/> on the graph, centered at the top of the pane.
         /// </summary>
@@ -693,14 +695,20 @@ namespace ZedGraph {
             // only draw the title if it's required
             if (_title._isVisible) {
                 SizeF size = _title._fontSpec.BoundingBox(g, _title._text, scaleFactor);
+                float x = (_rect.Left + _rect.Right) / 2;
+                float y = _rect.Top + _margin.Top * (float)scaleFactor + size.Height / 2.0F;
 
                 // use the internal fontSpec class to draw the text using user-specified and/or
                 // default attributes.
-                _title._fontSpec.Draw(g, this, _title._text,
-                    (_rect.Left + _rect.Right) / 2,
-                    _rect.Top + _margin.Top * (float)scaleFactor + size.Height / 2.0F,
-                    AlignH.Center, AlignV.Center, scaleFactor);
+                this.titleRectangle = _title._fontSpec.Draw(g, this, _title._text,x, y, AlignH.Center, AlignV.Center, scaleFactor);
             }
+        }
+
+        public bool isOverTitle(int x, int y) {
+            if (this.titleRectangle != null) {
+                return this.titleRectangle.Value.Contains(x, y);
+            }
+            return false;
         }
 
         /// <summary>
