@@ -1299,7 +1299,9 @@ namespace ZedGraph {
                 if (curve.ClipAndInterpolateToChartArea) {
                     pointsList = ClipAreaPolygonPoints(pointsList, pane.Chart.Rect);
                 }
-                pointsList.Add(pointsList[pointsList.Count - 1]);
+                if (pointsList.Count > 0) {
+                    pointsList.Add(pointsList[pointsList.Count - 1]);
+                }
                 arrPoints = pointsList.ToArray();
 
                 count = arrPoints.Length;
